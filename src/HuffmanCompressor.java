@@ -1,5 +1,7 @@
+
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -31,20 +33,31 @@ public class HuffmanCompressor {
         }
     }
 
-    static class CodigoHuffman {
+    static class Codigo {
+
         int bits;
         int tamanho;
 
-        public CodigoHuffman(int bits, int tamanho){
+        public Codigo(int bits, int tamanho) {
             this.bits = bits;
             this.tamanho = tamanho;
         }
     }
 
     public static void main(String[] args) throws IOException {
-        byte[] rawData = new FileInputStream(new File("examples/teste.txt")).readAllBytes();
+        String arquivo = "teste.txt";
+        File file = new File("src/examples", arquivo);
+
+        FileInputStream fis = new FileInputStream(file);
+
+        byte[] rawData = fis.readAllBytes();
+
+        File outFile = new File("out\\", arquivo.split("\\.")[0] + ".huffman");
+        FileOutputStream fos = new FileOutputStream(outFile);
 
         if (rawData.length == 0) {
+            fis.close();
+            fos.close();
             return;
         }
 
@@ -65,30 +78,30 @@ public class HuffmanCompressor {
 
         No raiz = formaArvore(listaLetras);
 
-        List<Byte> cabecalho;
-        List<Byte> textoComprimido;
+        List<Byte> cabecalho = formaCabecalho(raiz);
+        List<Byte> textoComprimido = comprimirTexto(raiz, rawData, len);
 
-        if (raiz != null) {
-            cabecalho = formaCabecalho(raiz);
-            textoComprimido = comprimirTexto(raiz, rawData, len);
+        byte bitsFaltando = textoComprimido.remove(textoComprimido.size() - 1);
+
+        int tamArquivoFinal = cabecalho.size() + textoComprimido.size() + 1;
+        byte[] bytesFinais = new byte[tamArquivoFinal];
+        
+        int ponteiro = 0;
+
+        bytesFinais[ponteiro++] = bitsFaltando;
+
+        for(Byte b : cabecalho){
+            bytesFinais[ponteiro++] = b;
         }
 
-        int tamanhoStringOriginal = len;
-        String binarioStringOriginal = Integer.toBinaryString(tamanhoStringOriginal);
-        String binarioStringOriginal32bits = String.format("%32s", binarioStringOriginal).replace(' ', '0');
-
-        String stringFinal = "jose";
-
-        StringBuilder stringFinalBuilder = new StringBuilder(stringFinal);
-
-        int bitsFaltantes = 8 - (stringFinal.length() % 8);
-        if (bitsFaltantes < 8) {
-            for (int i = 0; i < bitsFaltantes; i++) {
-                stringFinalBuilder.append("0");
-            }
+        for(Byte b : textoComprimido){
+            bytesFinais[ponteiro++] = b;
         }
 
-        System.out.println(stringFinalBuilder.length() + " bits");
+        makeDir();
+        fos.write(bytesFinais);
+        fis.close();
+        fos.close();
     }
 
     public static No formaArvore(ArrayList<No> lista) {
@@ -132,11 +145,7 @@ public class HuffmanCompressor {
 
             if (atual.ehFolha()) {
                 listaBytes.add((byte) 1);
-
                 byte valorConvertido = (byte) (atual.letra & 0xFF);
-
-                //String binario = Integer.toBinaryString(atual.letra & 0xFF);
-                //String binarioFormatado = String.format("%8s", binario).replace(' ', '0');
                 listaBytes.add(valorConvertido);
             } else {
                 listaBytes.add((byte) 0);
@@ -173,8 +182,8 @@ public class HuffmanCompressor {
         return null;
     }
 
-    private static HashMap<Byte, CodigoHuffman> formaTabelaRecusivo(No raiz) {
-        HashMap<Byte, CodigoHuffman> tabela = new HashMap<>();
+    private static HashMap<Byte, Codigo> formaTabelaRecusivo(No raiz) {
+        HashMap<Byte, Codigo> tabela = new HashMap<>();
         List<Byte> lista = new ArrayList<>();
 
         caminhos(raiz, tabela, lista);
@@ -182,7 +191,7 @@ public class HuffmanCompressor {
         return tabela;
     }
 
-    private static void caminhos(No atual, HashMap<Byte, CodigoHuffman> tabela, List<Byte> lista) {
+    private static void caminhos(No atual, HashMap<Byte, Codigo> tabela, List<Byte> lista) {
 
         if (atual.ehFolha()) {
             int numTeste = 0;
@@ -191,7 +200,7 @@ public class HuffmanCompressor {
                 numTeste = numTeste | (lista.get(i) << i);
             }
 
-            tabela.put(atual.letra, new CodigoHuffman(numTeste, lista.size()));
+            tabela.put(atual.letra, new Codigo(numTeste, lista.size()));
             return;
         }
 
@@ -206,19 +215,20 @@ public class HuffmanCompressor {
 
     public static List<Byte> comprimirTexto(No raiz, byte[] palavras, int tamanhoPalavras) {
         List<Byte> textoComprimido = new ArrayList<>();
-        HashMap<Byte, CodigoHuffman> tabela = formaTabelaRecusivo(raiz);
+        HashMap<Byte, Codigo> tabela = formaTabelaRecusivo(raiz);
 
         int buffer = 0;
         int bitsNoBuffer = 0;
+        int bitsFaltando = 0;
 
         for (int i = 0; i < tamanhoPalavras; i++) {
             byte letraAtual = palavras[i];
-            CodigoHuffman resultadoTabela = tabela.get(letraAtual);
+            Codigo resultadoTabela = tabela.get(letraAtual);
 
             buffer = (buffer << resultadoTabela.tamanho) | resultadoTabela.bits;
             bitsNoBuffer += resultadoTabela.tamanho;
 
-            while(bitsNoBuffer >= 8){
+            while (bitsNoBuffer >= 8) {
                 bitsNoBuffer -= 8;
 
                 byte bytePronto = (byte) (buffer >> bitsNoBuffer);
@@ -229,11 +239,26 @@ public class HuffmanCompressor {
 
         }
 
-        if(bitsNoBuffer > 0){
-            buffer = buffer << (8 - bitsNoBuffer);
+        if (bitsNoBuffer > 0) {
+            bitsFaltando = 8 - bitsNoBuffer;
+            buffer = buffer << bitsFaltando;
             textoComprimido.add((byte) buffer);
         }
 
+        textoComprimido.add((byte) bitsFaltando);
         return textoComprimido;
+    }
+
+    private static void makeDir() {
+        File theDir = new File(System.getProperty("user.dir") + File.separator + "out");
+
+        if (!theDir.exists()) {
+            try {
+                theDir.mkdir();
+            } catch (Exception e) {
+                // TODO: Lidar com isso aqui ner
+            }
+        }
+
     }
 }
