@@ -48,6 +48,12 @@ public class HuffmanCompressor {
     public static void main(String[] args) throws IOException {
         String tipo = args[0];
         String nomeArquivo = args[1];
+
+        if (args.length < 2) {
+            System.err.println("Usage: java HuffmanCompressor <compress|decompress> <filename>");
+            return;
+        }
+
         File file = new File(nomeArquivo);
 
         FileInputStream fis = new FileInputStream(file);
@@ -125,7 +131,8 @@ public class HuffmanCompressor {
             fos.write(bytesFinais);
             fos.close();
         } catch (IOException ex) {
-            System.getLogger(HuffmanCompressor.class.getName()).log(System.Logger.Level.ERROR, (String) null, ex);
+            System.err.println("Error writing compressed file: " + ex.getMessage());
+            ex.printStackTrace();
         }
     }
 
