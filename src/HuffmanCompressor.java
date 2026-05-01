@@ -1,6 +1,7 @@
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -45,27 +46,44 @@ public class HuffmanCompressor {
     }
 
     public static void main(String[] args) throws IOException {
-        String arquivo = "teste.txt";
-        File file = new File("src/examples", arquivo);
+        String tipo = args[0];
+        String nomeArquivo = args[1];
+        File file = new File(nomeArquivo);
 
         FileInputStream fis = new FileInputStream(file);
 
         byte[] rawData = fis.readAllBytes();
+        int len = rawData.length;
 
-        File outFile = new File("out\\", arquivo.split("\\.")[0] + ".huffman");
-        FileOutputStream fos = new FileOutputStream(outFile);
-
-        if (rawData.length == 0) {
+        if (len == 0) {
             fis.close();
-            fos.close();
             return;
         }
 
-        int len = rawData.length;
+        switch (tipo) {
+            case "compress" -> {
+                compress(rawData, len, nomeArquivo);
+                System.out.println("Arquivo comprimido com sucesso.");
+                break;
+            }
+            case "decompress" -> {
+                break;
+            }
+            default -> {
+                System.out.println("Formato desconhecido.");
+                fis.close();
+                return;
+            }
+        }
 
+        fis.close();
+    }
+
+    public static void compress(byte[] rawData, int len, String nomeArquivo) throws FileNotFoundException {
         ArrayList<No> listaLetras = new ArrayList<>();
 
         int[] frequencias = new int[256];
+
         for (int i = 0; i < len; i++) {
             frequencias[rawData[i] & 0xFF]++;
         }
@@ -84,24 +102,31 @@ public class HuffmanCompressor {
         byte bitsFaltando = textoComprimido.remove(textoComprimido.size() - 1);
 
         int tamArquivoFinal = cabecalho.size() + textoComprimido.size() + 1;
+
         byte[] bytesFinais = new byte[tamArquivoFinal];
-        
+
         int ponteiro = 0;
 
         bytesFinais[ponteiro++] = bitsFaltando;
 
-        for(Byte b : cabecalho){
+        for (Byte b : cabecalho) {
             bytesFinais[ponteiro++] = b;
         }
 
-        for(Byte b : textoComprimido){
+        for (Byte b : textoComprimido) {
             bytesFinais[ponteiro++] = b;
         }
+
+        File outFile = new File("src\\out\\", "arquivoTeste.huffman");
+        FileOutputStream fos = new FileOutputStream(outFile);
 
         makeDir();
-        fos.write(bytesFinais);
-        fis.close();
-        fos.close();
+        try {
+            fos.write(bytesFinais);
+            fos.close();
+        } catch (IOException ex) {
+            System.getLogger(HuffmanCompressor.class.getName()).log(System.Logger.Level.ERROR, (String) null, ex);
+        }
     }
 
     public static No formaArvore(ArrayList<No> lista) {
