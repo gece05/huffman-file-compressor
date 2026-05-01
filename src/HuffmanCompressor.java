@@ -46,13 +46,13 @@ public class HuffmanCompressor {
     }
 
     public static void main(String[] args) throws IOException {
-        String tipo = args[0];
-        String nomeArquivo = args[1];
-
         if (args.length < 2) {
             System.err.println("Usage: java HuffmanCompressor <compress|decompress> <filename>");
             return;
         }
+
+        String tipo = args[0];
+        String nomeArquivo = args[1];
 
         File file = new File(nomeArquivo);
 
